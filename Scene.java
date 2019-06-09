@@ -1,0 +1,4 @@
+enum Scene {
+  PYRAMID,
+  STAR
+};
