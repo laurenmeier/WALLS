@@ -6,7 +6,7 @@ AudioPlayer input_audio;
 FFT fft;
 BeatDetect beat;
 
-Scene sceneSelect;
+SceneSelector sceneSelect;
 float lastVolume;
 float volume;
 int levelScale;
@@ -57,7 +57,7 @@ void setup()
   beat = new BeatDetect();
   
   //general setup
-  sceneSelect = Scene.STAR;
+  sceneSelect = SceneSelector.STAR;
   volume = 0;
   levelScale = 15;
   
@@ -108,21 +108,21 @@ void draw()
   // select the pyramid scene if walls are deteced iff song is on a beat
   if (beat.isOnset()) {
     if (isWallsPresent) {
-      sceneSelect = Scene.PYRAMID;
+      sceneSelect = SceneSelector.PYRAMID;
     }
   }
   // select the star scene at any time if walls are not deteced
   if (!isWallsPresent) {
     if (isRising) {
-      sceneSelect = Scene.SPIRAL;
+      sceneSelect = SceneSelector.SPIRAL;
     } else if (volume > 0.4) {
-      if (sceneSelect != Scene.STAR) randomMoveStar(starSize);
-      sceneSelect = Scene.STAR;
+      if (sceneSelect != SceneSelector.STAR) randomMoveStar(starSize);
+      sceneSelect = SceneSelector.STAR;
     }
   } 
   
   // draw riser background
-  if (sceneSelect != Scene.SPIRAL) riser();
+  if (sceneSelect != SceneSelector.SPIRAL) riser();
   
   // draw current selected scene
   switch (sceneSelect) {
@@ -135,9 +135,8 @@ void draw()
     case STAR:
       updateStarPosition(starSize);
       if (volume < 0.3) randomMoveStar(starSize);
-      pushMatrix();
       drawStar(starX, starY, starSize, volume*levelScale);
-      popMatrix();
+      drawStar(starX, starY, starSize*1.2, volume*levelScale);
       break;
   }
   
@@ -244,6 +243,7 @@ void randomMoveStar(float size) {
 }
 
 void drawStar(float x, float y, float size, float degree) {
+  pushMatrix();
   translate(x, y);
   for (int i = 0; i < 4*degree; i++) {
     pushMatrix();
@@ -256,19 +256,23 @@ void drawStar(float x, float y, float size, float degree) {
     drawSpike(size, degree);
     popMatrix();
   }
+  popMatrix();
 }
 
 void drawSpike(float size, float degree) {
   strokeWeight(1);
   beginShape();
-  float space = 2;
-  vertex(0+space, 0+space);
-  vertex(size/2*cos(PI/4/degree)+space, size/2*sin(PI/4/degree)+space);
-  vertex(size*5/12*cos(5*PI/16/degree), size*5/12*sin(5*PI/16/degree));
-  vertex(size*2/3*cos(3*PI/8/degree), size*2/3*sin(3*PI/8/degree));
-  vertex(size*7/12*cos(7*PI/16/degree), size*7/12*sin(7*PI/16/degree));
-  vertex(0+space, size);
+  vertex(0, 0);
+  drawVertex(size/2, PI/4, degree);
+  drawVertex(size*5/12, 5*PI/16, degree);
+  drawVertex(size*2/3, 3*PI/8, degree);
+  drawVertex(size*7/12, 7*PI/16, degree);
+  drawVertex(size, PI/2, degree);
   endShape(CLOSE);
+}
+
+void drawVertex(float size, float angle, float degree) {
+  vertex(size*cos(angle/degree), size*sin(angle/degree));
 }
 
 void updateSpiralSize(float freq) {
