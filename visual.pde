@@ -37,10 +37,8 @@ float spiralAng;
 float rotateSpeed;
 boolean isRising;
 float lastRiseDetectionTime;
-int numFramesRising;
 float highVol;
 float lastHighVol;
-boolean lastDiffRise;
 int numIncreases;
 
 void setup()
@@ -84,9 +82,7 @@ void setup()
   spiralAng = 0;
   rotateSpeed = PI/48;
   isRising = false;
-  numFramesRising = 0;
   highVol = 0;
-  lastDiffRise = false;
   numIncreases = 0;
 }
 
@@ -170,34 +166,13 @@ void detectWalls() {
 void detectRising() {
   lastHighVol = highVol;
   highVol = fft.getFreq(8000);
-  
-  //if (highVol - lastHighVol > 0.05) {
-  //  if (lastDiffRise) numFramesRising += 1;
-  //  lastDiffRise = true;
-  //} else {
-  //  lastDiffRise = false;
-  //  numFramesRising = 0;
-  //}
-  
-  //if (numFramesRising > 5) {
-  //  isRising = true;
-  //  lastRiseDetectionTime = millis();
-  //} 
-  
-  //if (isRising && millis() - lastRiseDetectionTime > 100) {
-  //  isRising = false;
-  //  numFramesRising = 0;
-  //  lastDiffRise = false;
-  //}
   if (millis()%20 == 0) numIncreases = 0;
   if (isRising && millis() - lastRiseDetectionTime > 100) isRising = false;
   if (millis()%20 == 19 && numIncreases > 5) {
     isRising = true;
     lastRiseDetectionTime = millis();
   }
-  if (highVol - lastHighVol > 0.05) {
-    numIncreases += 1;
-  }
+  if (highVol - lastHighVol > 0.05) numIncreases += 1;
 }
 
 void pyramid() {
