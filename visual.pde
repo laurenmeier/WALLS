@@ -18,16 +18,30 @@ int numLines;
 boolean isWallsPresent;
 float lastDetectionTime;
 int wallTime;
+float wallThickness;
 
 //riser variables
 float numStars;
 
-//star variables;=
+//star variables
 int starX;
 int starY;
 int deltaX;
 int deltaY;
 float starSize;
+
+//spiral variables
+float spiralRadius;
+float avgFreqVolume;
+float spiralAng;
+float rotateSpeed;
+boolean isRising;
+float lastRiseDetectionTime;
+int numFramesRising;
+float highVol;
+float lastHighVol;
+boolean lastDiffRise;
+int numIncreases;
 
 void setup()
 {
@@ -56,12 +70,24 @@ void setup()
   isWallsPresent = false;
   lastDetectionTime = 0;
   wallTime = 500;
+  wallThickness = 0.8;
   
   //star setup
   starX = width/2;
   starY = width/2;
   deltaX = 1;
   deltaY = 1;
+  
+  //spiral setup
+  avgFreqVolume = 0;
+  spiralRadius = width/6;
+  spiralAng = 0;
+  rotateSpeed = PI/48;
+  isRising = false;
+  numFramesRising = 0;
+  highVol = 0;
+  lastDiffRise = false;
+  numIncreases = 0;
 }
 
 void draw()
@@ -79,6 +105,8 @@ void draw()
   updateNumStars(fft.getFreq(8000));
   // update star scene levels
   updateStarSize(fft.getFreq(60));
+  updateSpiralSize(fft.getFreq(14000));
+  detectRising();
   
   // determine the scene to be drawn
   // select the pyramid scene if walls are deteced iff song is on a beat
@@ -89,29 +117,40 @@ void draw()
   }
   // select the star scene at any time if walls are not deteced
   if (!isWallsPresent) {
-    if (sceneSelect != Scene.STAR || volume < 0.3) randomMoveStar(starSize);
-    sceneSelect = Scene.STAR; 
-  }
+    if (isRising) {
+      sceneSelect = Scene.SPIRAL;
+    } else if (volume > 0.4) {
+      if (sceneSelect != Scene.STAR) randomMoveStar(starSize);
+      sceneSelect = Scene.STAR;
+    }
+  } 
   
   // draw riser background
-  riser();
+  if (sceneSelect != Scene.SPIRAL) riser();
   
   // draw current selected scene
   switch (sceneSelect) {
+    case SPIRAL:
+      spiral();
+      break;
     case PYRAMID:
       pyramid();
       break;
     case STAR:
       updateStarPosition(starSize);
+      if (volume < 0.3) randomMoveStar(starSize);
+      pushMatrix();
       drawStar(starX, starY, starSize, volume*levelScale);
+      popMatrix();
       break;
   }
   
   //for testing
-  //textSize(32);
+  textSize(32);
   //float round = float(ceil(volume*100000))/100000;
-  //text("volume: " + round, 10, 30); 
-  //text("wallTime: " + wallTime, 10, 80);
+  //text("sceneSelect: " + sceneSelect, 10, 30); 
+  //text("avgFreqVolume: " + fft.getFreq(10000), 10, 80);
+  //text("numFramesRising:" + numFramesRising, 10, 80);
 }
 
 void updateVolume() {
@@ -128,9 +167,42 @@ void detectWalls() {
   }
 }
 
+void detectRising() {
+  lastHighVol = highVol;
+  highVol = fft.getFreq(8000);
+  
+  //if (highVol - lastHighVol > 0.05) {
+  //  if (lastDiffRise) numFramesRising += 1;
+  //  lastDiffRise = true;
+  //} else {
+  //  lastDiffRise = false;
+  //  numFramesRising = 0;
+  //}
+  
+  //if (numFramesRising > 5) {
+  //  isRising = true;
+  //  lastRiseDetectionTime = millis();
+  //} 
+  
+  //if (isRising && millis() - lastRiseDetectionTime > 100) {
+  //  isRising = false;
+  //  numFramesRising = 0;
+  //  lastDiffRise = false;
+  //}
+  if (millis()%20 == 0) numIncreases = 0;
+  if (isRising && millis() - lastRiseDetectionTime > 100) isRising = false;
+  if (millis()%20 == 19 && numIncreases > 5) {
+    isRising = true;
+    lastRiseDetectionTime = millis();
+  }
+  if (highVol - lastHighVol > 0.05) {
+    numIncreases += 1;
+  }
+}
+
 void pyramid() {
   noFill();
-  strokeWeight(volume*levelScale);
+  strokeWeight(pow(volume, 2)*levelScale*wallThickness);
   lineLength = lineLength + (0.5*direction);
   if (lineLength < 1 || lineLength > height/10) {
     direction = direction * -1;
@@ -224,6 +296,40 @@ void drawSpike(float size, float degree) {
   endShape(CLOSE);
 }
 
+void updateSpiralSize(float freq) {
+  float newAvg = (avgFreqVolume + freq) / frameCount;
+  if (freq > 0.4 && spiralRadius > width/12) {
+    spiralRadius = spiralRadius - 1;
+  } else if (spiralRadius < width/2.5) {
+    spiralRadius = spiralRadius + 1;
+  }
+  avgFreqVolume = newAvg;
+  rotateSpeed = PI/768 + volume*0.2;
+  spiralAng = spiralAng + rotateSpeed;
+}
+
+void spiral() {
+  pushMatrix();
+  drawBoxCylinder(10, spiralRadius, 0, 3);
+  drawBoxCylinder(10, spiralRadius, PI, 3);
+  popMatrix();
+}
+
+void drawBoxCylinder(float size, float radius, float startAng, float numRotations) {
+  pushMatrix();
+  translate(width/2, 0);
+  rotateY(spiralAng);
+  int numBoxes = int(height/size);
+  for (int i = 0; i < numBoxes; i++) {
+    pushMatrix();
+    float angle = startAng + i*(numRotations*2*PI/numBoxes);
+    translate(radius*cos(angle), i*size, radius*sin(angle));
+    box(size);
+    popMatrix();
+  }
+  popMatrix();
+}
+
 void keyPressed() {
   if ( key == 'f' )
   {
@@ -240,5 +346,8 @@ void keyPressed() {
   }
   if (key == 'l' ) {
     wallTime = wallTime - 100;
+  }
+  if (key=='w') {
+    wallThickness = wallThickness + 0.1;
   }
 }

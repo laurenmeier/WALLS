@@ -1,4 +1,5 @@
 enum Scene {
   PYRAMID,
-  STAR
+  STAR,
+  SPIRAL
 };
