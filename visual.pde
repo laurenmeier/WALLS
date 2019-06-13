@@ -24,11 +24,7 @@ float wallThickness;
 float numStars;
 
 //star variables
-int starX;
-int starY;
-int deltaX;
-int deltaY;
-float starSize;
+Star starScene;
 
 //spiral variables
 float spiralRadius;
@@ -71,11 +67,8 @@ void setup()
   wallThickness = 0.8;
   
   //star setup
-  starX = width/2;
-  starY = width/2;
-  deltaX = 1;
-  deltaY = 1;
-  
+  starScene = new Star();
+
   //spiral setup
   avgFreqVolume = 0;
   spiralRadius = width/6;
@@ -100,7 +93,7 @@ void draw()
   // update riser levels
   updateNumStars(fft.getFreq(8000));
   // update star scene levels
-  updateStarSize(fft.getFreq(60));
+  starScene.update();
   updateSpiralSize(fft.getFreq(14000));
   detectRising();
   
@@ -116,7 +109,7 @@ void draw()
     if (isRising) {
       sceneSelect = SceneSelector.SPIRAL;
     } else if (volume > 0.4) {
-      if (sceneSelect != SceneSelector.STAR) randomMoveStar(starSize);
+      if (sceneSelect != SceneSelector.STAR) starScene.randomMoveStar();
       sceneSelect = SceneSelector.STAR;
     }
   } 
@@ -133,10 +126,9 @@ void draw()
       pyramid();
       break;
     case STAR:
-      updateStarPosition(starSize);
-      if (volume < 0.3) randomMoveStar(starSize);
-      drawStar(starX, starY, starSize, volume*levelScale);
-      drawStar(starX, starY, starSize*1.2, volume*levelScale);
+      starScene.updateStarPosition();
+      if (volume < 0.3) starScene.randomMoveStar();
+      starScene.show();
       break;
   }
   
@@ -220,59 +212,6 @@ void drawDiamond(float x, float y, float w, float h) {
   arc(x+w/2, y-h/2, w, h, HALF_PI, PI);
   arc(x+w/2, y+h/2, w, h, PI, PI+HALF_PI);
   arc(x-w/2, y+h/2, w, h, PI+HALF_PI, 2*PI);
-}
-
-void updateStarPosition(float size) {
-  if (starX - size <= 0 || starX + size >= width) {
-    deltaX = deltaX*-1;
-  } 
-  if (starY - size <= 0 || starY + size >= height) {
-    deltaY = deltaY*-1;
-  }
-  starX += deltaX;
-  starY += deltaY;
-}
-
-void updateStarSize(float freq) {
-  starSize = freq*0.5+height/6;
-}
-
-void randomMoveStar(float size) {
-  starX = int(random(size, width-size));
-  starY = int(random(size, height-size));
-}
-
-void drawStar(float x, float y, float size, float degree) {
-  pushMatrix();
-  translate(x, y);
-  for (int i = 0; i < 4*degree; i++) {
-    pushMatrix();
-    rotate(i*PI/2/degree);
-    drawSpike(size, degree);
-    popMatrix();
-    pushMatrix();
-    scale(1, -1);
-    rotate(i*PI/2/degree);
-    drawSpike(size, degree);
-    popMatrix();
-  }
-  popMatrix();
-}
-
-void drawSpike(float size, float degree) {
-  strokeWeight(1);
-  beginShape();
-  vertex(0, 0);
-  drawVertex(size/2, PI/4, degree);
-  drawVertex(size*5/12, 5*PI/16, degree);
-  drawVertex(size*2/3, 3*PI/8, degree);
-  drawVertex(size*7/12, 7*PI/16, degree);
-  drawVertex(size, PI/2, degree);
-  endShape(CLOSE);
-}
-
-void drawVertex(float size, float angle, float degree) {
-  vertex(size*cos(angle/degree), size*sin(angle/degree));
 }
 
 void updateSpiralSize(float freq) {
