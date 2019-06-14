@@ -12,13 +12,7 @@ float volume;
 int levelScale;
 
 //line scene variables
-float lineLength;
-int direction;
-int numLines;
-boolean isWallsPresent;
-float lastDetectionTime;
-int wallTime;
-float wallThickness;
+Pyramid pyramidScene;
 
 //riser variables
 float numStars;
@@ -58,13 +52,7 @@ void setup()
   levelScale = 15;
   
   //line setup
-  lineLength = height/10;
-  direction = -1;
-  numLines = 10;
-  isWallsPresent = false;
-  lastDetectionTime = 0;
-  wallTime = 500;
-  wallThickness = 0.8;
+  pyramidScene = new Pyramid();
   
   //star setup
   starScene = new Star();
@@ -88,7 +76,7 @@ void draw()
   fft.forward(input_audio.mix);
   beat.detect(input_audio.mix);
   // update pyramid scene levels
-  detectWalls();
+  pyramidScene.update();
   updateVolume();
   // update riser levels
   updateNumStars(fft.getFreq(8000));
@@ -100,12 +88,12 @@ void draw()
   // determine the scene to be drawn
   // select the pyramid scene if walls are deteced iff song is on a beat
   if (beat.isOnset()) {
-    if (isWallsPresent) {
+    if (pyramidScene.isWallsPresent) {
       sceneSelect = SceneSelector.PYRAMID;
     }
   }
   // select the star scene at any time if walls are not deteced
-  if (!isWallsPresent) {
+  if (!pyramidScene.isWallsPresent) {
     if (isRising) {
       sceneSelect = SceneSelector.SPIRAL;
     } else if (volume > 0.4) {
@@ -123,7 +111,7 @@ void draw()
       spiral();
       break;
     case PYRAMID:
-      pyramid();
+      pyramidScene.show();
       break;
     case STAR:
       starScene.updateStarPosition();
@@ -145,15 +133,6 @@ void updateVolume() {
   volume = input_audio.mix.level();
 }
 
-void detectWalls() {
-  if (abs(lastVolume - volume) > 0.3) {
-    isWallsPresent = true;
-    lastDetectionTime = millis();
-  } else if (millis() - lastDetectionTime > wallTime) {
-    isWallsPresent = false;
-  }
-}
-
 void detectRising() {
   lastHighVol = highVol;
   highVol = fft.getFreq(8000);
@@ -164,23 +143,6 @@ void detectRising() {
     lastRiseDetectionTime = millis();
   }
   if (highVol - lastHighVol > 0.05) numIncreases += 1;
-}
-
-void pyramid() {
-  noFill();
-  strokeWeight(pow(volume, 2)*levelScale*wallThickness);
-  lineLength = lineLength + (0.5*direction);
-  if (lineLength < 1 || lineLength > height/10) {
-    direction = direction * -1;
-  }
-  translate(width/2.1, height/12);
-  rotateZ(PI/4.23);
-  for (int i = 0; i < numLines; i++) {
-    float x = i*10;
-    for (int n = 0; n < height; n+=lineLength+10) {
-      line(x, n, x, n + lineLength, x, x);
-    }
-  }
 }
 
 void updateNumStars(float freq) {
@@ -258,14 +220,5 @@ void keyPressed() {
   {
     // skip backward 1 second (1000 milliseconds)
     input_audio.skip(-5000);
-  }
-  if (key == 'm' ) {
-    wallTime = wallTime + 100;
-  }
-  if (key == 'l' ) {
-    wallTime = wallTime - 100;
-  }
-  if (key=='w') {
-    wallThickness = wallThickness + 0.1;
   }
 }
