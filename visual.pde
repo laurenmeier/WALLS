@@ -11,25 +11,10 @@ float lastVolume;
 float volume;
 int levelScale;
 
-//line scene variables
 Pyramid pyramidScene;
-
-//riser variables
-float numStars;
-
-//star variables
+Twinkle twinkleScene;
 Star starScene;
-
-//spiral variables
-float spiralRadius;
-float avgFreqVolume;
-float spiralAng;
-float rotateSpeed;
-boolean isRising;
-float lastRiseDetectionTime;
-float highVol;
-float lastHighVol;
-int numIncreases;
+Spiral spiralScene;
 
 void setup()
 {
@@ -51,20 +36,10 @@ void setup()
   volume = 0;
   levelScale = 15;
   
-  //line setup
   pyramidScene = new Pyramid();
-  
-  //star setup
+  twinkleScene = new Twinkle();
   starScene = new Star();
-
-  //spiral setup
-  avgFreqVolume = 0;
-  spiralRadius = width/6;
-  spiralAng = 0;
-  rotateSpeed = PI/48;
-  isRising = false;
-  highVol = 0;
-  numIncreases = 0;
+  spiralScene = new Spiral();
 }
 
 void draw()
@@ -75,26 +50,23 @@ void draw()
 
   fft.forward(input_audio.mix);
   beat.detect(input_audio.mix);
-  // update pyramid scene levels
+  
+  
   pyramidScene.update();
   updateVolume();
-  // update riser levels
-  updateNumStars(fft.getFreq(8000));
-  // update star scene levels
+  twinkleScene.update();
   starScene.update();
-  updateSpiralSize(fft.getFreq(14000));
-  detectRising();
+  spiralScene.update();
   
   // determine the scene to be drawn
-  // select the pyramid scene if walls are deteced iff song is on a beat
   if (beat.isOnset()) {
     if (pyramidScene.isWallsPresent) {
       sceneSelect = SceneSelector.PYRAMID;
     }
   }
-  // select the star scene at any time if walls are not deteced
+
   if (!pyramidScene.isWallsPresent) {
-    if (isRising) {
+    if (spiralScene.isRising) {
       sceneSelect = SceneSelector.SPIRAL;
     } else if (volume > 0.4) {
       if (sceneSelect != SceneSelector.STAR) starScene.randomMoveStar();
@@ -103,12 +75,12 @@ void draw()
   } 
   
   // draw riser background
-  if (sceneSelect != SceneSelector.SPIRAL) riser();
+  if (sceneSelect != SceneSelector.SPIRAL) twinkleScene.show();
   
   // draw current selected scene
   switch (sceneSelect) {
     case SPIRAL:
-      spiral();
+      spiralScene.show();
       break;
     case PYRAMID:
       pyramidScene.show();
@@ -119,95 +91,11 @@ void draw()
       starScene.show();
       break;
   }
-  
-  //for testing
-  textSize(32);
-  //float round = float(ceil(volume*100000))/100000;
-  //text("sceneSelect: " + sceneSelect, 10, 30); 
-  //text("avgFreqVolume: " + fft.getFreq(10000), 10, 80);
-  //text("numFramesRising:" + numFramesRising, 10, 80);
 }
 
 void updateVolume() {
   if (millis() % 50 == 0) lastVolume = volume;
   volume = input_audio.mix.level();
-}
-
-void detectRising() {
-  lastHighVol = highVol;
-  highVol = fft.getFreq(8000);
-  if (millis()%20 == 0) numIncreases = 0;
-  if (isRising && millis() - lastRiseDetectionTime > 100) isRising = false;
-  if (millis()%20 == 19 && numIncreases > 5) {
-    isRising = true;
-    lastRiseDetectionTime = millis();
-  }
-  if (highVol - lastHighVol > 0.05) numIncreases += 1;
-}
-
-void updateNumStars(float freq) {
-  numStars = int(freq)*10;
-}
-
-void riser() {
-  strokeWeight(1);
-  for (int i = 0; i < numStars; i++) {
-    float x = random(0, width);
-    float y = random(0, height);
-    float w = random(5, 15);
-    drawDiamond(x, y, w, 2*w);
-  }
-}
-
-//draw one diamond at the coordinates (x, y)
-//w is the width of the diamond, h is the height
-void drawDiamond(float x, float y, float w, float h) {
-  float r = random(100, 200);
-  float g = random(100, 200);
-  float b = random(185, 255);
-  fill(r, g, b);
-  stroke(r, g, b);
-  ellipse(x, y, w, h);
-  fill(0);
-  stroke(255);
-  arc(x-w/2, y-h/2, w, h, 0, HALF_PI);
-  arc(x+w/2, y-h/2, w, h, HALF_PI, PI);
-  arc(x+w/2, y+h/2, w, h, PI, PI+HALF_PI);
-  arc(x-w/2, y+h/2, w, h, PI+HALF_PI, 2*PI);
-}
-
-void updateSpiralSize(float freq) {
-  float newAvg = (avgFreqVolume + freq) / frameCount;
-  if (freq > 0.4 && spiralRadius > width/12) {
-    spiralRadius = spiralRadius - 1;
-  } else if (spiralRadius < width/2.5) {
-    spiralRadius = spiralRadius + 1;
-  }
-  avgFreqVolume = newAvg;
-  rotateSpeed = PI/768 + volume*0.2;
-  spiralAng = spiralAng + rotateSpeed;
-}
-
-void spiral() {
-  pushMatrix();
-  drawBoxCylinder(10, spiralRadius, 0, 3);
-  drawBoxCylinder(10, spiralRadius, PI, 3);
-  popMatrix();
-}
-
-void drawBoxCylinder(float size, float radius, float startAng, float numRotations) {
-  pushMatrix();
-  translate(width/2, 0);
-  rotateY(spiralAng);
-  int numBoxes = int(height/size);
-  for (int i = 0; i < numBoxes; i++) {
-    pushMatrix();
-    float angle = startAng + i*(numRotations*2*PI/numBoxes);
-    translate(radius*cos(angle), i*size, radius*sin(angle));
-    box(size);
-    popMatrix();
-  }
-  popMatrix();
 }
 
 void keyPressed() {
